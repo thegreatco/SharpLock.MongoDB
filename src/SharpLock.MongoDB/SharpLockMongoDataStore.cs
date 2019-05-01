@@ -20,25 +20,25 @@ namespace SharpLock.MongoDB
         public TimeSpan GetLockTime() => _baseDataStore.GetLockTime();
 
         public Task<TLockableObject> AcquireLockAsync(ObjectId baseObjId, TLockableObject obj, int staleLockMultiplier,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             return _baseDataStore.AcquireLockAsync(baseObjId, obj, x => x, staleLockMultiplier, cancellationToken);
         }
 
         public Task<bool> RefreshLockAsync(ObjectId baseObjId, Guid lockedObjectLockId,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             return _baseDataStore.RefreshLockAsync(baseObjId, baseObjId, lockedObjectLockId, x => x, cancellationToken);
         }
 
         public Task<bool> ReleaseLockAsync(ObjectId baseObjId, Guid lockedObjectLockId,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             return _baseDataStore.ReleaseLockAsync(baseObjId, baseObjId, lockedObjectLockId, x => x, cancellationToken);
         }
 
         public Task<TLockableObject> GetLockedObjectAsync(ObjectId baseObjId, Guid lockedObjectLockId,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             return _baseDataStore.GetLockedObjectAsync(baseObjId, baseObjId, lockedObjectLockId, x => x,
                 cancellationToken);

@@ -21,7 +21,7 @@ namespace SharpLock.MongoDB
         {
             _sharpLockLogger = sharpLockLogger ?? throw new ArgumentNullException(nameof(sharpLockLogger));
             _col = col ?? throw new ArgumentNullException(nameof(col));
-            _lockTime = lockTime == default(TimeSpan) ? throw new ArgumentNullException(nameof(lockTime)) : lockTime;
+            _lockTime = lockTime == default ? throw new ArgumentNullException(nameof(lockTime)) : lockTime;
         }
 
         public ISharpLockLogger GetLogger() => _sharpLockLogger;
@@ -30,7 +30,7 @@ namespace SharpLock.MongoDB
 
         public Task<TBaseObject> AcquireLockAsync(ObjectId baseObjId, TLockableObject obj,
             Expression<Func<TBaseObject, IEnumerable<TLockableObject>>> fieldSelector, int staleLockMultiplier,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             if (baseObjId == null) throw new ArgumentNullException(nameof(baseObjId), "Base Object Id cannot be null");
             if (obj == null) throw new ArgumentNullException(nameof(obj), "Lockable Object cannot be null");
@@ -64,7 +64,7 @@ namespace SharpLock.MongoDB
 
         public Task<TBaseObject> AcquireLockAsync(ObjectId baseObjId, TLockableObject obj,
             Expression<Func<TBaseObject, TLockableObject>> fieldSelector, int staleLockMultiplier,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             if (baseObjId == null) throw new ArgumentNullException(nameof(baseObjId), "Base Object Id cannot be null");
             if (obj == null) throw new ArgumentNullException(nameof(obj), "Lockable Object cannot be null");
@@ -95,7 +95,7 @@ namespace SharpLock.MongoDB
         }
 
         public async Task<bool> RefreshLockAsync(ObjectId baseObjId, ObjectId lockedObjectId, Guid lockedObjectLockId,
-            Expression<Func<TBaseObject, IEnumerable<TLockableObject>>> fieldSelector, CancellationToken cancellationToken = default(CancellationToken))
+            Expression<Func<TBaseObject, IEnumerable<TLockableObject>>> fieldSelector, CancellationToken cancellationToken = default)
         {
             var query = Builders<TBaseObject>.Filter.And(
                 Builders<TBaseObject>.Filter.Eq(x => x.Id, baseObjId),
@@ -118,7 +118,7 @@ namespace SharpLock.MongoDB
         }
 
         public async Task<bool> RefreshLockAsync(ObjectId baseObjId, ObjectId lockedObjectId, Guid lockedObjectLockId,
-            Expression<Func<TBaseObject, TLockableObject>> fieldSelector, CancellationToken cancellationToken = default(CancellationToken))
+            Expression<Func<TBaseObject, TLockableObject>> fieldSelector, CancellationToken cancellationToken = default)
         {
             var query = Builders<TBaseObject>.Filter.And(
                 Builders<TBaseObject>.Filter.Eq(x => x.Id, baseObjId),
@@ -138,7 +138,7 @@ namespace SharpLock.MongoDB
         }
 
         public async Task<bool> ReleaseLockAsync(ObjectId baseObjId, ObjectId lockedObjectId, Guid lockedObjectLockId,
-            Expression<Func<TBaseObject, IEnumerable<TLockableObject>>> fieldSelector, CancellationToken cancellationToken = default(CancellationToken))
+            Expression<Func<TBaseObject, IEnumerable<TLockableObject>>> fieldSelector, CancellationToken cancellationToken = default)
         {
             var query = Builders<TBaseObject>.Filter.And(
                 Builders<TBaseObject>.Filter.Eq(x => x.Id, baseObjId),
@@ -162,7 +162,7 @@ namespace SharpLock.MongoDB
         }
 
         public Task<TBaseObject> GetLockedObjectAsync(ObjectId baseObjId, ObjectId lockedObjectId, Guid lockedObjectLockId,
-            Expression<Func<TBaseObject, TLockableObject>> fieldSelector, CancellationToken cancellationToken = default(CancellationToken))
+            Expression<Func<TBaseObject, TLockableObject>> fieldSelector, CancellationToken cancellationToken = default)
         {
             var query = Builders<TBaseObject>.Filter.And(
                 Builders<TBaseObject>.Filter.Eq(x => x.Id, baseObjId),
@@ -172,7 +172,7 @@ namespace SharpLock.MongoDB
         }
 
         public Task<TBaseObject> GetLockedObjectAsync(ObjectId baseObjId, ObjectId lockedObjectId, Guid lockedObjectLockId,
-            Expression<Func<TBaseObject, IEnumerable<TLockableObject>>> fieldSelector, CancellationToken cancellationToken = default(CancellationToken))
+            Expression<Func<TBaseObject, IEnumerable<TLockableObject>>> fieldSelector, CancellationToken cancellationToken = default)
         {
             var query = Builders<TBaseObject>.Filter.And(
                 Builders<TBaseObject>.Filter.Eq(x => x.Id, baseObjId),
@@ -184,7 +184,7 @@ namespace SharpLock.MongoDB
         }
 
         public async Task<bool> ReleaseLockAsync(ObjectId baseObjId, ObjectId lockedObjectId, Guid lockedObjectLockId,
-            Expression<Func<TBaseObject, TLockableObject>> fieldSelector, CancellationToken cancellationToken = default(CancellationToken))
+            Expression<Func<TBaseObject, TLockableObject>> fieldSelector, CancellationToken cancellationToken = default)
         {
             var query = Builders<TBaseObject>.Filter.And(
                 Builders<TBaseObject>.Filter.Eq(x => x.Id, baseObjId),
