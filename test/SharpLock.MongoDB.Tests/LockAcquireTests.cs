@@ -53,7 +53,7 @@ namespace SharpLock.MongoDB.Tests
             
             Assert.IsTrue(await lck.ReleaseLockAsync(), "Failed to release lock.");
             
-            lck.Dispose();
+            await lck.DisposeAsync().ConfigureAwait(false);
             Assert.IsTrue(lck.Disposed, "Failed to mark object as disposed");
         }
 
@@ -73,7 +73,7 @@ namespace SharpLock.MongoDB.Tests
             
             Assert.IsTrue(await lck.ReleaseLockAsync(), "Failed to release lock.");
             
-            lck.Dispose();
+            await lck.DisposeAsync().ConfigureAwait(false);
             Assert.IsTrue(lck.Disposed, "Failed to mark object as disposed");
         }
 
@@ -93,7 +93,7 @@ namespace SharpLock.MongoDB.Tests
             
             Assert.IsTrue(await lck.ReleaseLockAsync(), "Failed to release lock.");
             
-            lck.Dispose();
+            await lck.DisposeAsync().ConfigureAwait(false);
             Assert.IsTrue(lck.Disposed, "Failed to mark object as disposed");
         }
 
@@ -113,7 +113,7 @@ namespace SharpLock.MongoDB.Tests
             
             Assert.IsTrue(await lck.ReleaseLockAsync(), "Failed to release lock.");
             
-            lck.Dispose();
+            await lck.DisposeAsync().ConfigureAwait(false);
             Assert.IsTrue(lck.Disposed, "Failed to mark object as disposed");
         }
 
@@ -133,7 +133,7 @@ namespace SharpLock.MongoDB.Tests
             
             Assert.IsTrue(await lck.ReleaseLockAsync(), "Failed to release lock.");
             
-            lck.Dispose();
+            await lck.DisposeAsync().ConfigureAwait(false);
             Assert.IsTrue(lck.Disposed, "Failed to mark object as disposed");
         }
 
@@ -160,7 +160,7 @@ namespace SharpLock.MongoDB.Tests
             Assert.IsTrue(await lck.RefreshLockAsync(), "Failed to refresh lock.");
             Assert.IsTrue(await lck.ReleaseLockAsync(), "Failed to release lock.");
 
-            lck.Dispose();
+            await lck.DisposeAsync().ConfigureAwait(false);
             Assert.IsTrue(lck.Disposed, "Failed to mark object as disposed");
         }
 
@@ -182,7 +182,7 @@ namespace SharpLock.MongoDB.Tests
 
             Assert.IsTrue(await lck.ReleaseLockAsync(), "Failed to release lock.");
 
-            lck.Dispose();
+            await lck.DisposeAsync().ConfigureAwait(false);
             Assert.IsTrue(lck.Disposed, "Failed to mark object as disposed");
         }
 
@@ -204,7 +204,7 @@ namespace SharpLock.MongoDB.Tests
 
             Assert.IsTrue(await lck.ReleaseLockAsync(), "Failed to release lock.");
 
-            lck.Dispose();
+            await lck.DisposeAsync().ConfigureAwait(false);
             Assert.IsTrue(lck.Disposed, "Failed to mark object as disposed");
         }
 
@@ -226,7 +226,7 @@ namespace SharpLock.MongoDB.Tests
 
             Assert.IsTrue(await lck.ReleaseLockAsync(), "Failed to release lock.");
 
-            lck.Dispose();
+            await lck.DisposeAsync().ConfigureAwait(false);
             Assert.IsTrue(lck.Disposed, "Failed to mark object as disposed");
         }
 
@@ -250,7 +250,7 @@ namespace SharpLock.MongoDB.Tests
 
             Assert.IsTrue(await lck.ReleaseLockAsync(), "Failed to release lock.");
 
-            lck.Dispose();
+            await lck.DisposeAsync().ConfigureAwait(false);
             Assert.IsTrue(lck.Disposed, "Failed to mark object as disposed");
         }
 
@@ -272,7 +272,7 @@ namespace SharpLock.MongoDB.Tests
 
             Assert.IsTrue(await lck.ReleaseLockAsync(), "Failed to release lock.");
 
-            lck.Dispose();
+            await lck.DisposeAsync().ConfigureAwait(false);
             Assert.IsTrue(lck.Disposed, "Failed to mark object as disposed");
         }
 
@@ -294,7 +294,7 @@ namespace SharpLock.MongoDB.Tests
 
             Assert.AreEqual(lck.ToString(), "No lock acquired.");
 
-            lck.Dispose();
+            await lck.DisposeAsync().ConfigureAwait(false);
             Assert.IsTrue(lck.Disposed, "Failed to mark object as disposed");
         }
 
@@ -318,7 +318,7 @@ namespace SharpLock.MongoDB.Tests
 
             Assert.AreEqual(lck.ToString(), "No lock acquired.");
 
-            lck.Dispose();
+            await lck.DisposeAsync().ConfigureAwait(false);
             Assert.IsTrue(lck.Disposed, "Failed to mark object as disposed");
         }
 
@@ -344,7 +344,7 @@ namespace SharpLock.MongoDB.Tests
 
             Assert.AreEqual(lck.ToString(), "No lock acquired.");
 
-            lck.Dispose();
+            await lck.DisposeAsync().ConfigureAwait(false);
             Assert.IsTrue(lck.Disposed, "Failed to mark object as disposed");
         }
 
@@ -360,7 +360,7 @@ namespace SharpLock.MongoDB.Tests
 
             Assert.IsTrue(lck.LockAcquired, "Lock should be acquired but it doesn't appear to be.");
 
-            lck.Dispose();
+            await lck.DisposeAsync().ConfigureAwait(false);
             Assert.IsTrue(lck.Disposed, "Failed to mark object as disposed");
         }
 
@@ -382,7 +382,7 @@ namespace SharpLock.MongoDB.Tests
 
             Assert.AreEqual(lck.ToString(), "No lock acquired.");
 
-            lck.Dispose();
+            await lck.DisposeAsync().ConfigureAwait(false);
             Assert.IsTrue(lck.Disposed, "Failed to mark object as disposed");
         }
 
@@ -406,7 +406,7 @@ namespace SharpLock.MongoDB.Tests
 
             Assert.AreEqual(lck.ToString(), "No lock acquired.");
 
-            lck.Dispose();
+            await lck.DisposeAsync().ConfigureAwait(false);
             Assert.IsTrue(lck.Disposed, "Failed to mark object as disposed");
         }
 
@@ -432,7 +432,7 @@ namespace SharpLock.MongoDB.Tests
 
             Assert.AreEqual(lck.ToString(), "No lock acquired.");
 
-            lck.Dispose();
+            await lck.DisposeAsync().ConfigureAwait(false);
             Assert.IsTrue(lck.Disposed, "Failed to mark object as disposed");
         }
 
@@ -448,7 +448,7 @@ namespace SharpLock.MongoDB.Tests
 
             Assert.IsTrue(lck.LockAcquired, "Lock should be acquired but it doesn't appear to be.");
 
-            lck.Dispose();
+            await lck.DisposeAsync().ConfigureAwait(false);
             Assert.IsTrue(lck.Disposed, "Failed to mark object as disposed");
         }
     }

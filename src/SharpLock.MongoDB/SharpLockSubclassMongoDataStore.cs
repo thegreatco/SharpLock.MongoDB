@@ -18,11 +18,16 @@ namespace SharpLock.MongoDB
         private readonly IMongoCollection<TBaseObject> _col;
         private readonly TimeSpan _lockTime;
 
-        public SharpLockMongoDataStore(IMongoCollection<TBaseObject> col, ILogger sharpLockLogger, TimeSpan lockTime)
+        public SharpLockMongoDataStore(IMongoCollection<TBaseObject> col, ILogger logger, TimeSpan lockTime)
         {
-            _logger = sharpLockLogger ?? throw new ArgumentNullException(nameof(sharpLockLogger));
+            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
             _col = col ?? throw new ArgumentNullException(nameof(col));
             _lockTime = lockTime == default ? throw new ArgumentNullException(nameof(lockTime)) : lockTime;
+        }
+
+        public SharpLockMongoDataStore(IMongoCollection<TBaseObject> col, ILoggerFactory loggerFactory, TimeSpan lockTime) 
+            : this(col, loggerFactory.CreateLogger<SharpLockMongoDataStore<TBaseObject, TLockableObject>>(), lockTime)
+        {
         }
 
         public ILogger GetLogger() => _logger;

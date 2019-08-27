@@ -12,9 +12,14 @@ namespace SharpLock.MongoDB
     {
         private readonly SharpLockMongoDataStore<TLockableObject, TLockableObject> _baseDataStore;
 
-        public SharpLockMongoDataStore(IMongoCollection<TLockableObject> col, ILogger sharpLockLogger, TimeSpan lockTime)
+        public SharpLockMongoDataStore(IMongoCollection<TLockableObject> col, ILogger logger, TimeSpan lockTime)
         {
-            _baseDataStore = new SharpLockMongoDataStore<TLockableObject, TLockableObject>(col, sharpLockLogger, lockTime);
+            _baseDataStore = new SharpLockMongoDataStore<TLockableObject, TLockableObject>(col, logger, lockTime);
+        }
+
+        public SharpLockMongoDataStore(IMongoCollection<TLockableObject> col, ILoggerFactory loggerFactory, TimeSpan lockTime)
+            : this(col, loggerFactory.CreateLogger<SharpLockMongoDataStore<TLockableObject>>(), lockTime)
+        {
         }
 
         public ILogger GetLogger() => _baseDataStore.GetLogger();

@@ -1,6 +1,6 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFramework>netstandard2.0</TargetFramework>
+    <TargetFramework>netstandard2.1</TargetFramework>
     <PlatformTarget>anycpu</PlatformTarget>
     <DebugType>portable</DebugType>
     <AssemblyName>SharpLock.MongoDB</AssemblyName>
@@ -20,7 +20,7 @@
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="MongoDB.Driver" Version="2.9.1" />
-    <PackageReference Include="SharpLock" Version="1.0.23" />
+    <PackageReference Include="SharpLock" Version="1.0.24" />
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="2.2.0" />
   </ItemGroup>
 </Project>

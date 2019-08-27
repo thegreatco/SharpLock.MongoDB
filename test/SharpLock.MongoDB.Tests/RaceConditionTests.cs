@@ -58,7 +58,7 @@ namespace SharpLock.MongoDB.Tests
             Assert.IsTrue(lockStates.Count(x => x) == locks.Count, "Failed to release lock.");
             Assert.IsTrue(locks.Count(x => x.LockAcquired) == 0, "Failed to release lock.");
             
-            locks.ForEach(x => x.Dispose());
+            await Task.WhenAll(locks.Select(async x => await x.DisposeAsync().ConfigureAwait(false)));
             Assert.IsTrue(locks.Count(x => x.Disposed) == locks.Count, "Failed to mark object as disposed");
         }
 
@@ -86,7 +86,7 @@ namespace SharpLock.MongoDB.Tests
             Assert.IsTrue(lockStates.Count(x => x) == locks.Count, "Failed to release lock.");
             Assert.IsTrue(locks.Count(x => x.LockAcquired) == 0, "Failed to release lock.");
 
-            locks.ForEach(x => x.Dispose());
+            await Task.WhenAll(locks.Select(async x => await x.DisposeAsync().ConfigureAwait(false)));
             Assert.IsTrue(locks.Count(x => x.Disposed) == locks.Count, "Failed to mark object as disposed");
         }
 
@@ -114,7 +114,7 @@ namespace SharpLock.MongoDB.Tests
             Assert.IsTrue(lockStates.Count(x => x) == locks.Count, "Failed to release lock.");
             Assert.IsTrue(locks.Count(x => x.LockAcquired) == 0, "Failed to release lock.");
 
-            locks.ForEach(x => x.Dispose());
+            await Task.WhenAll(locks.Select(async x => await x.DisposeAsync().ConfigureAwait(false)));
             Assert.IsTrue(locks.Count(x => x.Disposed) == locks.Count, "Failed to mark object as disposed");
         }
 
@@ -142,7 +142,7 @@ namespace SharpLock.MongoDB.Tests
             Assert.IsTrue(lockStates.Count(x => x) == locks.Count, "Failed to release lock.");
             Assert.IsTrue(locks.Count(x => x.LockAcquired) == 0, "Failed to release lock.");
 
-            locks.ForEach(x => x.Dispose());
+            await Task.WhenAll(locks.Select(async x => await x.DisposeAsync().ConfigureAwait(false)));
             Assert.IsTrue(locks.Count(x => x.Disposed) == locks.Count, "Failed to mark object as disposed");
         }
 
@@ -170,7 +170,7 @@ namespace SharpLock.MongoDB.Tests
             Assert.IsTrue(lockStates.Count(x => x) == locks.Count, "Failed to release lock.");
             Assert.IsTrue(locks.Count(x => x.LockAcquired) == 0, "Failed to release lock.");
 
-            locks.ForEach(x => x.Dispose());
+            await Task.WhenAll(locks.Select(async x => await x.DisposeAsync().ConfigureAwait(false)));
             Assert.IsTrue(locks.Count(x => x.Disposed) == locks.Count, "Failed to mark object as disposed");
         }
     }
