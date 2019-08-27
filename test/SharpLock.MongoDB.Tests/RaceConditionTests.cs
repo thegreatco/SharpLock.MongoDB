@@ -5,24 +5,28 @@ using Serilog;
 using MongoDB.Driver;
 using MongoDB.Bson;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using Serilog.Events;
+using ILogger = Microsoft.Extensions.Logging.ILogger;
+using Serilog.AspNetCore;
+using Microsoft.Extensions.Logging;
 
 namespace SharpLock.MongoDB.Tests
 {
     [TestClass]
     public class RaceConditionTests
     {
-        private ISharpLockLogger _sharpLockLogger;
+        private ILogger _logger;
         private IMongoCollection<LockBase> _col;
 
         [TestInitialize]
         public async Task Setup()
         {
-            var logConfig = new LoggerConfiguration()
-                .WriteTo.LiterateConsole()
-                .MinimumLevel.Verbose();
-
-            Log.Logger = logConfig.CreateLogger();
-            _sharpLockLogger = new LoggingShim(Log.Logger);
+            var loggerConfig = new LoggerConfiguration()
+                .MinimumLevel.Verbose()
+                .WriteTo.LiterateConsole(LogEventLevel.Verbose);
+            var logger = loggerConfig.CreateLogger();
+            ILoggerFactory factory = new SerilogLoggerFactory(logger);
+            _logger = factory.CreateLogger(GetType());
 
             var client = new MongoClient();
             var db = client.GetDatabase("Test");
@@ -35,7 +39,7 @@ namespace SharpLock.MongoDB.Tests
         {
             var lockBase = new LockBase();
             await _col.InsertOneAsync(lockBase);
-            var dataStore = new SharpLockMongoDataStore<LockBase>(_col, _sharpLockLogger, TimeSpan.FromSeconds(30));
+            var dataStore = new SharpLockMongoDataStore<LockBase>(_col, _logger, TimeSpan.FromSeconds(30));
 
             var locks = Enumerable.Range(0, 100).Select(x => new DistributedLock<LockBase, ObjectId>(dataStore)).ToList();
             Log.Logger.Information(locks.Count.ToString());
@@ -63,7 +67,7 @@ namespace SharpLock.MongoDB.Tests
         {
             var lockBase = new LockBase();
             await _col.InsertOneAsync(lockBase);
-            var dataStore = new SharpLockMongoDataStore<LockBase, InnerLock>(_col, _sharpLockLogger, TimeSpan.FromSeconds(30));
+            var dataStore = new SharpLockMongoDataStore<LockBase, InnerLock>(_col, _logger, TimeSpan.FromSeconds(30));
 
             var locks = Enumerable.Range(0, 100).Select(x => new DistributedLock<LockBase, InnerLock, ObjectId>(dataStore, y => y.SingularInnerLock)).ToList();
             Log.Logger.Information(locks.Count.ToString());
@@ -91,7 +95,7 @@ namespace SharpLock.MongoDB.Tests
         {
             var lockBase = new LockBase();
             await _col.InsertOneAsync(lockBase);
-            var dataStore = new SharpLockMongoDataStore<LockBase, InnerLock>(_col, _sharpLockLogger, TimeSpan.FromSeconds(30));
+            var dataStore = new SharpLockMongoDataStore<LockBase, InnerLock>(_col, _logger, TimeSpan.FromSeconds(30));
 
             var locks = Enumerable.Range(0, 100).Select(x => new DistributedLock<LockBase, InnerLock, ObjectId>(dataStore, y => y.EnumerableLockables)).ToList();
             Log.Logger.Information(locks.Count.ToString());
@@ -119,7 +123,7 @@ namespace SharpLock.MongoDB.Tests
         {
             var lockBase = new LockBase();
             await _col.InsertOneAsync(lockBase);
-            var dataStore = new SharpLockMongoDataStore<LockBase, InnerLock>(_col, _sharpLockLogger, TimeSpan.FromSeconds(30));
+            var dataStore = new SharpLockMongoDataStore<LockBase, InnerLock>(_col, _logger, TimeSpan.FromSeconds(30));
 
             var locks = Enumerable.Range(0, 100).Select(x => new DistributedLock<LockBase, InnerLock, ObjectId>(dataStore, y => y.ListOfLockables)).ToList();
             Log.Logger.Information(locks.Count.ToString());
@@ -147,7 +151,7 @@ namespace SharpLock.MongoDB.Tests
         {
             var lockBase = new LockBase();
             await _col.InsertOneAsync(lockBase);
-            var dataStore = new SharpLockMongoDataStore<LockBase, InnerLock>(_col, _sharpLockLogger, TimeSpan.FromSeconds(30));
+            var dataStore = new SharpLockMongoDataStore<LockBase, InnerLock>(_col, _logger, TimeSpan.FromSeconds(30));
 
             var locks = Enumerable.Range(0, 100).Select(x => new DistributedLock<LockBase, InnerLock, ObjectId>(dataStore, y => y.ArrayOfLockables)).ToList();
             Log.Logger.Information(locks.Count.ToString());

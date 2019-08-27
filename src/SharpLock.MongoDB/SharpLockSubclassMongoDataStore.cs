@@ -7,24 +7,25 @@ using MongoDB.Bson;
 using MongoDB.Driver;
 using MongoDB.Bson.Serialization;
 using System.Collections.Generic;
+using Microsoft.Extensions.Logging;
 
 namespace SharpLock.MongoDB
 {
     public class SharpLockMongoDataStore<TBaseObject, TLockableObject> : ISharpLockDataStore<TBaseObject, TLockableObject, ObjectId>
         where TLockableObject : ISharpLockable<ObjectId> where TBaseObject : class, ISharpLockableBase<ObjectId>
     {
-        private readonly ISharpLockLogger _sharpLockLogger;
+        private readonly ILogger _logger;
         private readonly IMongoCollection<TBaseObject> _col;
         private readonly TimeSpan _lockTime;
 
-        public SharpLockMongoDataStore(IMongoCollection<TBaseObject> col, ISharpLockLogger sharpLockLogger, TimeSpan lockTime)
+        public SharpLockMongoDataStore(IMongoCollection<TBaseObject> col, ILogger sharpLockLogger, TimeSpan lockTime)
         {
-            _sharpLockLogger = sharpLockLogger ?? throw new ArgumentNullException(nameof(sharpLockLogger));
+            _logger = sharpLockLogger ?? throw new ArgumentNullException(nameof(sharpLockLogger));
             _col = col ?? throw new ArgumentNullException(nameof(col));
             _lockTime = lockTime == default ? throw new ArgumentNullException(nameof(lockTime)) : lockTime;
         }
 
-        public ISharpLockLogger GetLogger() => _sharpLockLogger;
+        public ILogger GetLogger() => _logger;
 
         public TimeSpan GetLockTime() => _lockTime;
 
@@ -52,7 +53,7 @@ namespace SharpLock.MongoDB
                 .Set(Combine(fieldSelector, x => x.ElementAt(-1).UpdateLock), lockTime)
                 .Set(Combine(fieldSelector, x => x.ElementAt(-1).LockId), Guid.NewGuid());
 
-            _sharpLockLogger.Trace("Acquire Lock Query: {Query}, Acquire Lock Update: {Update}",
+            _logger.LogTrace("Acquire Lock Query: {Query}, Acquire Lock Update: {Update}",
                 query.Render(BsonSerializer.SerializerRegistry.GetSerializer<TBaseObject>(),
                     BsonSerializer.SerializerRegistry).ToJson(),
                 update.Render(BsonSerializer.SerializerRegistry.GetSerializer<TBaseObject>(),
@@ -84,7 +85,7 @@ namespace SharpLock.MongoDB
                 .Set(Combine(fieldSelector, x => x.UpdateLock), lockTime)
                 .Set(Combine(fieldSelector, x => x.LockId), Guid.NewGuid());
 
-            _sharpLockLogger.Trace("Acquire Lock Query: {Query}, Acquire Lock Update: {Update}",
+            _logger.LogTrace("Acquire Lock Query: {Query}, Acquire Lock Update: {Update}",
                 query.Render(BsonSerializer.SerializerRegistry.GetSerializer<TBaseObject>(),
                     BsonSerializer.SerializerRegistry).ToJson(),
                 update.Render(BsonSerializer.SerializerRegistry.GetSerializer<TBaseObject>(),
@@ -107,7 +108,7 @@ namespace SharpLock.MongoDB
             var update = Builders<TBaseObject>.Update.Set(Combine(fieldSelector, x => x.ElementAt(-1).UpdateLock),
                 DateTime.UtcNow.Add(_lockTime));
 
-            _sharpLockLogger.Trace("Refresh Lock Query: {Query}, Refresh Lock Update: {Update}",
+            _logger.LogTrace("Refresh Lock Query: {Query}, Refresh Lock Update: {Update}",
                 query.Render(BsonSerializer.SerializerRegistry.GetSerializer<TBaseObject>(),
                     BsonSerializer.SerializerRegistry).ToJson(),
                 update.Render(BsonSerializer.SerializerRegistry.GetSerializer<TBaseObject>(),
@@ -127,7 +128,7 @@ namespace SharpLock.MongoDB
 
             var update = Builders<TBaseObject>.Update.Set(Combine(fieldSelector, x => x.UpdateLock), DateTime.UtcNow.Add(_lockTime));
 
-            _sharpLockLogger.Trace("Refresh Lock Query: {Query}, Refresh Lock Update: {Update}",
+            _logger.LogTrace("Refresh Lock Query: {Query}, Refresh Lock Update: {Update}",
                 query.Render(BsonSerializer.SerializerRegistry.GetSerializer<TBaseObject>(),
                     BsonSerializer.SerializerRegistry).ToJson(),
                 update.Render(BsonSerializer.SerializerRegistry.GetSerializer<TBaseObject>(),
@@ -151,7 +152,7 @@ namespace SharpLock.MongoDB
                 .Set(Combine(fieldSelector, x => x.ElementAt(-1).UpdateLock), null)
                 .Set(Combine(fieldSelector, x => x.ElementAt(-1).LockId), null);
 
-            _sharpLockLogger.Trace("Refresh Lock Query: {Query}, Refresh Lock Update: {Update}",
+            _logger.LogTrace("Refresh Lock Query: {Query}, Refresh Lock Update: {Update}",
                 query.Render(BsonSerializer.SerializerRegistry.GetSerializer<TBaseObject>(),
                     BsonSerializer.SerializerRegistry).ToJson(),
                 update.Render(BsonSerializer.SerializerRegistry.GetSerializer<TBaseObject>(),
@@ -195,7 +196,7 @@ namespace SharpLock.MongoDB
                 .Set(Combine(fieldSelector, x => x.UpdateLock), null)
                 .Set(Combine(fieldSelector, x => x.LockId), null);
 
-            _sharpLockLogger.Trace("Refresh Lock Query: {Query}, Refresh Lock Update: {Update}",
+            _logger.LogTrace("Refresh Lock Query: {Query}, Refresh Lock Update: {Update}",
                 query.Render(BsonSerializer.SerializerRegistry.GetSerializer<TBaseObject>(),
                     BsonSerializer.SerializerRegistry).ToJson(),
                 update.Render(BsonSerializer.SerializerRegistry.GetSerializer<TBaseObject>(),

@@ -1,6 +1,7 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using MongoDB.Bson;
 using MongoDB.Driver;
 
@@ -11,12 +12,13 @@ namespace SharpLock.MongoDB
     {
         private readonly SharpLockMongoDataStore<TLockableObject, TLockableObject> _baseDataStore;
 
-        public SharpLockMongoDataStore(IMongoCollection<TLockableObject> col, ISharpLockLogger sharpLockLogger, TimeSpan lockTime)
+        public SharpLockMongoDataStore(IMongoCollection<TLockableObject> col, ILogger sharpLockLogger, TimeSpan lockTime)
         {
             _baseDataStore = new SharpLockMongoDataStore<TLockableObject, TLockableObject>(col, sharpLockLogger, lockTime);
         }
 
-        public ISharpLockLogger GetLogger() => _baseDataStore.GetLogger();
+        public ILogger GetLogger() => _baseDataStore.GetLogger();
+
         public TimeSpan GetLockTime() => _baseDataStore.GetLockTime();
 
         public Task<TLockableObject> AcquireLockAsync(ObjectId baseObjId, TLockableObject obj, int staleLockMultiplier,
