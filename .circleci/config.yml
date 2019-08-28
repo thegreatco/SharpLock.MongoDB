@@ -25,8 +25,8 @@ jobs:
             echo 'export NUGET_VERSION=${CIRCLE_TAG}' >> $BASH_ENV
             source $BASH_ENV
       - run: dotnet restore SharpLock.MongoDB.sln
-      - run: dotnet pack src/SharpLock.MongoDB/SharpLock.MongoDB.csproj -o ../../nupkgs --include-symbols /p:Version=${NUGET_VERSION}
-      - run: dotnet nuget push nupkgs/SharpLock.MongoDB.${NUGET_VERSION}.symbols.nupkg -k ${NUGET_API_KEY} -s https://api.nuget.org/v3/index.json
+      - run: dotnet pack src/SharpLock.MongoDB/SharpLock.MongoDB.csproj -o nupkgs /p:Version=${NUGET_VERSION}
+      - run: dotnet nuget push nupkgs/SharpLock.MongoDB.${NUGET_VERSION}.nupkg -k ${NUGET_API_KEY} -s https://api.nuget.org/v3/index.json
 
 workflows:
   version: 2
