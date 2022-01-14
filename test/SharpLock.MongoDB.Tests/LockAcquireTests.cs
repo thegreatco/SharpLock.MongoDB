@@ -40,7 +40,7 @@ namespace SharpLock.MongoDB.Tests
         {
             var lockBase = new LockBase();
             await _col.InsertOneAsync(lockBase);
-            var dataStore = new SharpLockMongoDataStore<LockBase>(_col, _logger, TimeSpan.FromSeconds(30));
+            var dataStore = new SharpLockMongoDataStore<LockBase, ObjectId>(_col, _logger, TimeSpan.FromSeconds(30));
             var lck = new DistributedLock<LockBase, ObjectId>(dataStore);
             
             Assert.IsTrue(await lck.AcquireLockAsync(lockBase) != null, "Failed to acquire lock.");
@@ -62,7 +62,7 @@ namespace SharpLock.MongoDB.Tests
         {
             var lockBase = new LockBase();
             await _col.InsertOneAsync(lockBase);
-            var dataStore = new SharpLockMongoDataStore<LockBase, InnerLock>(_col, _logger, TimeSpan.FromSeconds(30));
+            var dataStore = new SharpLockMongoDataStore<LockBase, InnerLock, ObjectId>(_col, _logger, TimeSpan.FromSeconds(30));
             var lck = new DistributedLock<LockBase, InnerLock, ObjectId>(dataStore, x => x.SingularInnerLock);
             
             Assert.IsNotNull(await lck.AcquireLockAsync(lockBase, lockBase.SingularInnerLock), "Failed to acquire lock.");
@@ -82,7 +82,7 @@ namespace SharpLock.MongoDB.Tests
         {
             var lockBase = new LockBase();
             await _col.InsertOneAsync(lockBase);
-            var dataStore = new SharpLockMongoDataStore<LockBase, InnerLock>(_col, _logger, TimeSpan.FromSeconds(30));
+            var dataStore = new SharpLockMongoDataStore<LockBase, InnerLock, ObjectId>(_col, _logger, TimeSpan.FromSeconds(30));
             var lck = new DistributedLock<LockBase, InnerLock, ObjectId>(dataStore, x => x.EnumerableLockables);
             
             Assert.IsNotNull(await lck.AcquireLockAsync(lockBase, lockBase.EnumerableLockables.First()), "Failed to acquire lock.");
@@ -102,7 +102,7 @@ namespace SharpLock.MongoDB.Tests
         {
             var lockBase = new LockBase();
             await _col.InsertOneAsync(lockBase);
-            var dataStore = new SharpLockMongoDataStore<LockBase, InnerLock>(_col, _logger, TimeSpan.FromSeconds(30));
+            var dataStore = new SharpLockMongoDataStore<LockBase, InnerLock, ObjectId>(_col, _logger, TimeSpan.FromSeconds(30));
             var lck = new DistributedLock<LockBase, InnerLock, ObjectId>(dataStore, x => x.ListOfLockables);
             
             Assert.IsNotNull(await lck.AcquireLockAsync(lockBase, lockBase.ListOfLockables.First()), "Failed to acquire lock.");
@@ -122,7 +122,7 @@ namespace SharpLock.MongoDB.Tests
         {
             var lockBase = new LockBase();
             await _col.InsertOneAsync(lockBase);
-            var dataStore = new SharpLockMongoDataStore<LockBase, InnerLock>(_col, _logger, TimeSpan.FromSeconds(30));
+            var dataStore = new SharpLockMongoDataStore<LockBase, InnerLock, ObjectId>(_col, _logger, TimeSpan.FromSeconds(30));
             var lck = new DistributedLock<LockBase, InnerLock, ObjectId>(dataStore, x => x.ArrayOfLockables);
             
             Assert.IsNotNull(await lck.AcquireLockAsync(lockBase, lockBase.ArrayOfLockables.First()), "Failed to acquire lock.");
@@ -142,7 +142,7 @@ namespace SharpLock.MongoDB.Tests
         {
             var lockBase = new LockBase();
             await _col.InsertOneAsync(lockBase);
-            var dataStore = new SharpLockMongoDataStore<LockBase>(_col, _logger, TimeSpan.FromSeconds(5));
+            var dataStore = new SharpLockMongoDataStore<LockBase, ObjectId>(_col, _logger, TimeSpan.FromSeconds(5));
             var lck = new DistributedLock<LockBase, ObjectId>(dataStore, 2);
 
             // Acquire the lock
@@ -169,7 +169,7 @@ namespace SharpLock.MongoDB.Tests
         {
             var lockBase = new LockBase();
             await _col.InsertOneAsync(lockBase);
-            var dataStore = new SharpLockMongoDataStore<LockBase, InnerLock>(_col, _logger, TimeSpan.FromSeconds(30));
+            var dataStore = new SharpLockMongoDataStore<LockBase, InnerLock, ObjectId>(_col, _logger, TimeSpan.FromSeconds(30));
             var lck = new DistributedLock<LockBase, InnerLock, ObjectId>(dataStore, x => x.ArrayOfLockables);
 
             Assert.IsNotNull(await lck.AcquireLockAsync(lockBase, lockBase.ArrayOfLockables.First()), "Failed to acquire lock.");
@@ -191,7 +191,7 @@ namespace SharpLock.MongoDB.Tests
         {
             var lockBase = new LockBase();
             await _col.InsertOneAsync(lockBase);
-            var dataStore = new SharpLockMongoDataStore<LockBase, InnerLock>(_col, _logger, TimeSpan.FromSeconds(30));
+            var dataStore = new SharpLockMongoDataStore<LockBase, InnerLock, ObjectId>(_col, _logger, TimeSpan.FromSeconds(30));
             var lck = new DistributedLock<LockBase, InnerLock, ObjectId>(dataStore, x => x.ListOfLockables);
 
             Assert.IsNotNull(await lck.AcquireLockAsync(lockBase, lockBase.ListOfLockables.First()), "Failed to acquire lock.");
@@ -213,7 +213,7 @@ namespace SharpLock.MongoDB.Tests
         {
             var lockBase = new LockBase();
             await _col.InsertOneAsync(lockBase);
-            var dataStore = new SharpLockMongoDataStore<LockBase, InnerLock>(_col, _logger, TimeSpan.FromSeconds(30));
+            var dataStore = new SharpLockMongoDataStore<LockBase, InnerLock, ObjectId>(_col, _logger, TimeSpan.FromSeconds(30));
             var lck = new DistributedLock<LockBase, InnerLock, ObjectId>(dataStore, x => x.EnumerableLockables);
 
             Assert.IsNotNull(await lck.AcquireLockAsync(lockBase, lockBase.EnumerableLockables.First()), "Failed to acquire lock.");
@@ -235,7 +235,7 @@ namespace SharpLock.MongoDB.Tests
         {
             var lockBase = new LockBase();
             await _col.InsertOneAsync(lockBase);
-            var dataStore = new SharpLockMongoDataStore<LockBase>(_col, _logger, TimeSpan.FromSeconds(30));
+            var dataStore = new SharpLockMongoDataStore<LockBase, ObjectId>(_col, _logger, TimeSpan.FromSeconds(30));
             var lck = new DistributedLock<LockBase, ObjectId>(dataStore);
 
             Assert.IsTrue(await lck.AcquireLockAsync(lockBase) != null, "Failed to acquire lock.");
@@ -259,7 +259,7 @@ namespace SharpLock.MongoDB.Tests
         {
             var lockBase = new LockBase();
             await _col.InsertOneAsync(lockBase);
-            var dataStore = new SharpLockMongoDataStore<LockBase, InnerLock>(_col, _logger, TimeSpan.FromSeconds(30));
+            var dataStore = new SharpLockMongoDataStore<LockBase, InnerLock, ObjectId>(_col, _logger, TimeSpan.FromSeconds(30));
             var lck = new DistributedLock<LockBase, InnerLock, ObjectId>(dataStore, x => x.SingularInnerLock);
 
             Assert.IsNotNull(await lck.AcquireLockAsync(lockBase, lockBase.SingularInnerLock), "Failed to acquire lock.");
@@ -281,7 +281,7 @@ namespace SharpLock.MongoDB.Tests
         {
             var lockBase = new LockBase();
             await _col.InsertOneAsync(lockBase);
-            var dataStore = new SharpLockMongoDataStore<LockBase>(_col, _logger, TimeSpan.FromSeconds(30));
+            var dataStore = new SharpLockMongoDataStore<LockBase, ObjectId>(_col, _logger, TimeSpan.FromSeconds(30));
             var lck = new DistributedLock<LockBase, ObjectId>(dataStore);
 
             Assert.IsNotNull(await lck.AcquireLockAsync(lockBase), "Failed to acquire lock.");
@@ -303,7 +303,7 @@ namespace SharpLock.MongoDB.Tests
         {
             var lockBase = new LockBase();
             await _col.InsertOneAsync(lockBase);
-            var dataStore = new SharpLockMongoDataStore<LockBase>(_col, _logger, TimeSpan.FromSeconds(30));
+            var dataStore = new SharpLockMongoDataStore<LockBase, ObjectId>(_col, _logger, TimeSpan.FromSeconds(30));
             var lck = new DistributedLock<LockBase, ObjectId>(dataStore);
 
             Assert.IsNotNull(await lck.AcquireLockAsync(lockBase), "Failed to acquire lock.");
@@ -327,7 +327,7 @@ namespace SharpLock.MongoDB.Tests
         {
             var lockBase = new LockBase();
             await _col.InsertOneAsync(lockBase);
-            var dataStore = new SharpLockMongoDataStore<LockBase>(_col, _logger, TimeSpan.FromSeconds(30));
+            var dataStore = new SharpLockMongoDataStore<LockBase, ObjectId>(_col, _logger, TimeSpan.FromSeconds(30));
             var lck = new DistributedLock<LockBase, ObjectId>(dataStore);
 
             Assert.IsTrue(await lck.GetObjectAsync() == null, "await lck.GetObjectAsync() == null");
@@ -353,7 +353,7 @@ namespace SharpLock.MongoDB.Tests
         {
             var lockBase = new LockBase();
             await _col.InsertOneAsync(lockBase);
-            var dataStore = new SharpLockMongoDataStore<LockBase>(_col, _logger, TimeSpan.FromSeconds(30));
+            var dataStore = new SharpLockMongoDataStore<LockBase, ObjectId>(_col, _logger, TimeSpan.FromSeconds(30));
             var lck = new DistributedLock<LockBase, ObjectId>(dataStore);
 
             Assert.IsTrue(await lck.AcquireLockAsync(lockBase) != null, "await lck.AcquireLockAsync(lockBase, lockBase.SingularInnerLock) != null");
@@ -369,7 +369,7 @@ namespace SharpLock.MongoDB.Tests
         {
             var lockBase = new LockBase();
             await _col.InsertOneAsync(lockBase);
-            var dataStore = new SharpLockMongoDataStore<LockBase, InnerLock>(_col, _logger, TimeSpan.FromSeconds(30));
+            var dataStore = new SharpLockMongoDataStore<LockBase, InnerLock, ObjectId>(_col, _logger, TimeSpan.FromSeconds(30));
             var lck = new DistributedLock<LockBase, InnerLock, ObjectId>(dataStore, x => x.SingularInnerLock);
 
             Assert.IsNotNull(await lck.AcquireLockAsync(lockBase, lockBase.SingularInnerLock), "Failed to acquire lock.");
@@ -391,7 +391,7 @@ namespace SharpLock.MongoDB.Tests
         {
             var lockBase = new LockBase();
             await _col.InsertOneAsync(lockBase);
-            var dataStore = new SharpLockMongoDataStore<LockBase, InnerLock>(_col, _logger, TimeSpan.FromSeconds(30));
+            var dataStore = new SharpLockMongoDataStore<LockBase, InnerLock, ObjectId>(_col, _logger, TimeSpan.FromSeconds(30));
             var lck = new DistributedLock<LockBase, InnerLock, ObjectId>(dataStore, x => x.SingularInnerLock);
 
             Assert.IsNotNull(await lck.AcquireLockAsync(lockBase, lockBase.SingularInnerLock), "Failed to acquire lock.");
@@ -415,7 +415,7 @@ namespace SharpLock.MongoDB.Tests
         {
             var lockBase = new LockBase();
             await _col.InsertOneAsync(lockBase);
-            var dataStore = new SharpLockMongoDataStore<LockBase, InnerLock>(_col, _logger, TimeSpan.FromSeconds(30));
+            var dataStore = new SharpLockMongoDataStore<LockBase, InnerLock, ObjectId>(_col, _logger, TimeSpan.FromSeconds(30));
             var lck = new DistributedLock<LockBase, InnerLock, ObjectId>(dataStore, x => x.SingularInnerLock);
 
             Assert.IsTrue(await lck.GetObjectAsync() == null, "await lck.GetObjectAsync() == null");
@@ -441,7 +441,7 @@ namespace SharpLock.MongoDB.Tests
         {
             var lockBase = new LockBase();
             await _col.InsertOneAsync(lockBase);
-            var dataStore = new SharpLockMongoDataStore<LockBase>(_col, _logger, TimeSpan.FromSeconds(30));
+            var dataStore = new SharpLockMongoDataStore<LockBase, ObjectId>(_col, _logger, TimeSpan.FromSeconds(30));
             var lck = new DistributedLock<LockBase, ObjectId>(dataStore);
 
             Assert.IsTrue(await lck.AcquireLockAsync(lockBase) != null, "await lck.AcquireLockAsync(lockBase, lockBase.SingularInnerLock)");

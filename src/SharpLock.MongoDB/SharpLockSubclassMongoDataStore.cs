@@ -11,8 +11,8 @@ using Microsoft.Extensions.Logging;
 
 namespace SharpLock.MongoDB
 {
-    public class SharpLockMongoDataStore<TBaseObject, TLockableObject> : ISharpLockDataStore<TBaseObject, TLockableObject, ObjectId>
-        where TLockableObject : ISharpLockable<ObjectId> where TBaseObject : class, ISharpLockableBase<ObjectId>
+    public class SharpLockMongoDataStore<TBaseObject, TLockableObject, TId> : ISharpLockDataStore<TBaseObject, TLockableObject, TId>
+        where TLockableObject : ISharpLockable<TId> where TBaseObject : class, ISharpLockableBase<TId>
     {
         private readonly ILogger _logger;
         private readonly IMongoCollection<TBaseObject> _col;
@@ -26,7 +26,7 @@ namespace SharpLock.MongoDB
         }
 
         public SharpLockMongoDataStore(IMongoCollection<TBaseObject> col, ILoggerFactory loggerFactory, TimeSpan lockTime) 
-            : this(col, loggerFactory.CreateLogger<SharpLockMongoDataStore<TBaseObject, TLockableObject>>(), lockTime)
+            : this(col, loggerFactory.CreateLogger<SharpLockMongoDataStore<TBaseObject, TLockableObject, TId>>(), lockTime)
         {
         }
 
@@ -34,7 +34,7 @@ namespace SharpLock.MongoDB
 
         public TimeSpan GetLockTime() => _lockTime;
 
-        public Task<TBaseObject> AcquireLockAsync(ObjectId baseObjId, TLockableObject obj,
+        public Task<TBaseObject> AcquireLockAsync(TId baseObjId, TLockableObject obj,
             Expression<Func<TBaseObject, IEnumerable<TLockableObject>>> fieldSelector, int staleLockMultiplier,
             CancellationToken cancellationToken = default)
         {
@@ -68,7 +68,7 @@ namespace SharpLock.MongoDB
                 new FindOneAndUpdateOptions<TBaseObject, TBaseObject> {ReturnDocument = ReturnDocument.After}, cancellationToken);
         }
 
-        public Task<TBaseObject> AcquireLockAsync(ObjectId baseObjId, TLockableObject obj,
+        public Task<TBaseObject> AcquireLockAsync(TId baseObjId, TLockableObject obj,
             Expression<Func<TBaseObject, TLockableObject>> fieldSelector, int staleLockMultiplier,
             CancellationToken cancellationToken = default)
         {
@@ -100,14 +100,14 @@ namespace SharpLock.MongoDB
                 new FindOneAndUpdateOptions<TBaseObject, TBaseObject> {ReturnDocument = ReturnDocument.After}, cancellationToken);
         }
 
-        public async Task<bool> RefreshLockAsync(ObjectId baseObjId, ObjectId lockedObjectId, Guid lockedObjectLockId,
+        public async Task<bool> RefreshLockAsync(TId baseObjId, TId lockedTId, Guid lockedObjectLockId,
             Expression<Func<TBaseObject, IEnumerable<TLockableObject>>> fieldSelector, CancellationToken cancellationToken = default)
         {
             var query = Builders<TBaseObject>.Filter.And(
                 Builders<TBaseObject>.Filter.Eq(x => x.Id, baseObjId),
                 Builders<TBaseObject>.Filter.ElemMatch(fieldSelector,
                     Builders<TLockableObject>.Filter.And(
-                        Builders<TLockableObject>.Filter.Eq(x => x.Id, lockedObjectId),
+                        Builders<TLockableObject>.Filter.Eq(x => x.Id, lockedTId),
                         Builders<TLockableObject>.Filter.Eq(x => x.LockId, lockedObjectLockId))));
 
             var update = Builders<TBaseObject>.Update.Set(Combine(fieldSelector, x => x.ElementAt(-1).UpdateLock),
@@ -123,12 +123,12 @@ namespace SharpLock.MongoDB
             return updateResult.IsModifiedCountAvailable && updateResult.MatchedCount == 1 && updateResult.ModifiedCount == 1;
         }
 
-        public async Task<bool> RefreshLockAsync(ObjectId baseObjId, ObjectId lockedObjectId, Guid lockedObjectLockId,
+        public async Task<bool> RefreshLockAsync(TId baseObjId, TId lockedTId, Guid lockedObjectLockId,
             Expression<Func<TBaseObject, TLockableObject>> fieldSelector, CancellationToken cancellationToken = default)
         {
             var query = Builders<TBaseObject>.Filter.And(
                 Builders<TBaseObject>.Filter.Eq(x => x.Id, baseObjId),
-                Builders<TBaseObject>.Filter.Eq(Combine(fieldSelector, x => x.Id), lockedObjectId),
+                Builders<TBaseObject>.Filter.Eq(Combine(fieldSelector, x => x.Id), lockedTId),
                 Builders<TBaseObject>.Filter.Eq(Combine(fieldSelector, x => x.LockId), lockedObjectLockId));
 
             var update = Builders<TBaseObject>.Update.Set(Combine(fieldSelector, x => x.UpdateLock), DateTime.UtcNow.Add(_lockTime));
@@ -143,14 +143,14 @@ namespace SharpLock.MongoDB
             return updateResult.IsModifiedCountAvailable && updateResult.MatchedCount == 1 && updateResult.ModifiedCount == 1;
         }
 
-        public async Task<bool> ReleaseLockAsync(ObjectId baseObjId, ObjectId lockedObjectId, Guid lockedObjectLockId,
+        public async Task<bool> ReleaseLockAsync(TId baseObjId, TId lockedTId, Guid lockedObjectLockId,
             Expression<Func<TBaseObject, IEnumerable<TLockableObject>>> fieldSelector, CancellationToken cancellationToken = default)
         {
             var query = Builders<TBaseObject>.Filter.And(
                 Builders<TBaseObject>.Filter.Eq(x => x.Id, baseObjId),
                 Builders<TBaseObject>.Filter.ElemMatch(fieldSelector,
                     Builders<TLockableObject>.Filter.And(
-                        Builders<TLockableObject>.Filter.Eq(x => x.Id, lockedObjectId),
+                        Builders<TLockableObject>.Filter.Eq(x => x.Id, lockedTId),
                         Builders<TLockableObject>.Filter.Eq(x => x.LockId, lockedObjectLockId))));
 
             var update = Builders<TBaseObject>.Update
@@ -167,34 +167,34 @@ namespace SharpLock.MongoDB
             return updateResult.IsModifiedCountAvailable && updateResult.MatchedCount == 1 && updateResult.ModifiedCount == 1;
         }
 
-        public Task<TBaseObject> GetLockedObjectAsync(ObjectId baseObjId, ObjectId lockedObjectId, Guid lockedObjectLockId,
+        public Task<TBaseObject> GetLockedObjectAsync(TId baseObjId, TId lockedTId, Guid lockedObjectLockId,
             Expression<Func<TBaseObject, TLockableObject>> fieldSelector, CancellationToken cancellationToken = default)
         {
             var query = Builders<TBaseObject>.Filter.And(
                 Builders<TBaseObject>.Filter.Eq(x => x.Id, baseObjId),
-                Builders<TBaseObject>.Filter.Eq(Combine(fieldSelector, x => x.Id), lockedObjectId),
+                Builders<TBaseObject>.Filter.Eq(Combine(fieldSelector, x => x.Id), lockedTId),
                 Builders<TBaseObject>.Filter.Eq(Combine(fieldSelector, x => x.LockId), lockedObjectLockId));
             return _col.Find(query).FirstOrDefaultAsync(cancellationToken);
         }
 
-        public Task<TBaseObject> GetLockedObjectAsync(ObjectId baseObjId, ObjectId lockedObjectId, Guid lockedObjectLockId,
+        public Task<TBaseObject> GetLockedObjectAsync(TId baseObjId, TId lockedTId, Guid lockedObjectLockId,
             Expression<Func<TBaseObject, IEnumerable<TLockableObject>>> fieldSelector, CancellationToken cancellationToken = default)
         {
             var query = Builders<TBaseObject>.Filter.And(
                 Builders<TBaseObject>.Filter.Eq(x => x.Id, baseObjId),
                 Builders<TBaseObject>.Filter.ElemMatch(fieldSelector,
                     Builders<TLockableObject>.Filter.And(
-                        Builders<TLockableObject>.Filter.Eq(x => x.Id, lockedObjectId),
+                        Builders<TLockableObject>.Filter.Eq(x => x.Id, lockedTId),
                         Builders<TLockableObject>.Filter.Eq(x => x.LockId, lockedObjectLockId))));
             return _col.Find(query).FirstOrDefaultAsync(cancellationToken);
         }
 
-        public async Task<bool> ReleaseLockAsync(ObjectId baseObjId, ObjectId lockedObjectId, Guid lockedObjectLockId,
+        public async Task<bool> ReleaseLockAsync(TId baseObjId, TId lockedTId, Guid lockedObjectLockId,
             Expression<Func<TBaseObject, TLockableObject>> fieldSelector, CancellationToken cancellationToken = default)
         {
             var query = Builders<TBaseObject>.Filter.And(
                 Builders<TBaseObject>.Filter.Eq(x => x.Id, baseObjId),
-                Builders<TBaseObject>.Filter.Eq(Combine(fieldSelector, x => x.Id), lockedObjectId),
+                Builders<TBaseObject>.Filter.Eq(Combine(fieldSelector, x => x.Id), lockedTId),
                 Builders<TBaseObject>.Filter.Eq(Combine(fieldSelector, x => x.LockId), lockedObjectLockId));
 
             var update = Builders<TBaseObject>.Update

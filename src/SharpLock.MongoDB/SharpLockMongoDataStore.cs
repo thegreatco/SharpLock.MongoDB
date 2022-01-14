@@ -2,23 +2,22 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
-using MongoDB.Bson;
 using MongoDB.Driver;
 
 namespace SharpLock.MongoDB
 {
-    public class SharpLockMongoDataStore<TLockableObject> : ISharpLockDataStore<TLockableObject, ObjectId>
-        where TLockableObject : class, ISharpLockable<ObjectId>
+    public class SharpLockMongoDataStore<TLockableObject, TId> : ISharpLockDataStore<TLockableObject, TId>
+        where TLockableObject : class, ISharpLockable<TId>
     {
-        private readonly SharpLockMongoDataStore<TLockableObject, TLockableObject> _baseDataStore;
+        private readonly SharpLockMongoDataStore<TLockableObject, TLockableObject, TId> _baseDataStore;
 
         public SharpLockMongoDataStore(IMongoCollection<TLockableObject> col, ILogger logger, TimeSpan lockTime)
         {
-            _baseDataStore = new SharpLockMongoDataStore<TLockableObject, TLockableObject>(col, logger, lockTime);
+            _baseDataStore = new SharpLockMongoDataStore<TLockableObject, TLockableObject, TId>(col, logger, lockTime);
         }
 
         public SharpLockMongoDataStore(IMongoCollection<TLockableObject> col, ILoggerFactory loggerFactory, TimeSpan lockTime)
-            : this(col, loggerFactory.CreateLogger<SharpLockMongoDataStore<TLockableObject>>(), lockTime)
+            : this(col, loggerFactory.CreateLogger<SharpLockMongoDataStore<TLockableObject, TId>>(), lockTime)
         {
         }
 
@@ -26,25 +25,25 @@ namespace SharpLock.MongoDB
 
         public TimeSpan GetLockTime() => _baseDataStore.GetLockTime();
 
-        public Task<TLockableObject> AcquireLockAsync(ObjectId baseObjId, TLockableObject obj, int staleLockMultiplier,
+        public Task<TLockableObject> AcquireLockAsync(TId baseObjId, TLockableObject obj, int staleLockMultiplier,
             CancellationToken cancellationToken = default)
         {
             return _baseDataStore.AcquireLockAsync(baseObjId, obj, x => x, staleLockMultiplier, cancellationToken);
         }
 
-        public Task<bool> RefreshLockAsync(ObjectId baseObjId, Guid lockedObjectLockId,
+        public Task<bool> RefreshLockAsync(TId baseObjId, Guid lockedObjectLockId,
             CancellationToken cancellationToken = default)
         {
             return _baseDataStore.RefreshLockAsync(baseObjId, baseObjId, lockedObjectLockId, x => x, cancellationToken);
         }
 
-        public Task<bool> ReleaseLockAsync(ObjectId baseObjId, Guid lockedObjectLockId,
+        public Task<bool> ReleaseLockAsync(TId baseObjId, Guid lockedObjectLockId,
             CancellationToken cancellationToken = default)
         {
             return _baseDataStore.ReleaseLockAsync(baseObjId, baseObjId, lockedObjectLockId, x => x, cancellationToken);
         }
 
-        public Task<TLockableObject> GetLockedObjectAsync(ObjectId baseObjId, Guid lockedObjectLockId,
+        public Task<TLockableObject> GetLockedObjectAsync(TId baseObjId, Guid lockedObjectLockId,
             CancellationToken cancellationToken = default)
         {
             return _baseDataStore.GetLockedObjectAsync(baseObjId, baseObjId, lockedObjectLockId, x => x,
