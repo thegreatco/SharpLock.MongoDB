@@ -8,25 +8,49 @@ using MongoDB.Driver;
 using MongoDB.Bson.Serialization;
 using System.Collections.Generic;
 using Microsoft.Extensions.Logging;
+using MongoDB.Driver.Core.Clusters;
 
 namespace SharpLock.MongoDB
 {
-    public class SharpLockMongoDataStore<TBaseObject, TLockableObject, TId> : ISharpLockDataStore<TBaseObject, TLockableObject, TId>
-        where TLockableObject : ISharpLockable<TId> where TBaseObject : class, ISharpLockableBase<TId>
+    public class SharpLockMongoDataStore<TBaseObject, TLockableObject, TId>
+        : ISharpLockDataStore<TBaseObject, TLockableObject, TId>
+        where TLockableObject : ISharpLockable<TId>
+        where TBaseObject : class, ISharpLockableBase<TId>
     {
         private readonly ILogger _logger;
         private readonly IMongoCollection<TBaseObject> _col;
         private readonly TimeSpan _lockTime;
+        private readonly WriteConcern _writeConcern;
+        private readonly ReadConcern _readConcern;
+        private readonly ReadPreference _readPreference;
 
         public SharpLockMongoDataStore(IMongoCollection<TBaseObject> col, ILogger logger, TimeSpan lockTime)
         {
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
             _col = col ?? throw new ArgumentNullException(nameof(col));
-            _lockTime = lockTime == default ? throw new ArgumentNullException(nameof(lockTime)) : lockTime;
+            _lockTime = lockTime == default
+                            ? throw new ArgumentNullException(nameof(lockTime))
+                            : lockTime;
+
+            _writeConcern = _col.Database.Client.Cluster.Description.Type == ClusterType.ReplicaSet
+                                ? WriteConcern.WMajority
+                                : WriteConcern.Acknowledged;
+
+            _readPreference = _col.Database.Client.Cluster.Description.Type == ClusterType.ReplicaSet
+                                  ? ReadPreference.Primary
+                                  : ReadPreference.Nearest;
+
+            _readConcern = _col.Database.Client.Cluster.Description.Type == ClusterType.ReplicaSet
+                               ? ReadConcern.Majority
+                               : ReadConcern.Default;
         }
 
-        public SharpLockMongoDataStore(IMongoCollection<TBaseObject> col, ILoggerFactory loggerFactory, TimeSpan lockTime) 
-            : this(col, loggerFactory.CreateLogger<SharpLockMongoDataStore<TBaseObject, TLockableObject, TId>>(), lockTime)
+        public SharpLockMongoDataStore(IMongoCollection<TBaseObject> col,
+                                       ILoggerFactory loggerFactory,
+                                       TimeSpan lockTime)
+            : this(col,
+                   loggerFactory.CreateLogger<SharpLockMongoDataStore<TBaseObject, TLockableObject, TId>>(),
+                   lockTime)
         {
         }
 
@@ -34,190 +58,320 @@ namespace SharpLock.MongoDB
 
         public TimeSpan GetLockTime() => _lockTime;
 
-        public Task<TBaseObject> AcquireLockAsync(TId baseObjId, TLockableObject obj,
-            Expression<Func<TBaseObject, IEnumerable<TLockableObject>>> fieldSelector, int staleLockMultiplier,
-            CancellationToken cancellationToken = default)
+        public Task<TBaseObject> AcquireLockAsync(TId baseObjId,
+                                                  TLockableObject obj,
+                                                  Expression<Func<TBaseObject, IEnumerable<TLockableObject>>>
+                                                      fieldSelector,
+                                                  int staleLockMultiplier,
+                                                  CancellationToken cancellationToken = default)
         {
-            if (baseObjId == null) throw new ArgumentNullException(nameof(baseObjId), "Base Object Id cannot be null");
-            if (obj == null) throw new ArgumentNullException(nameof(obj), "Lockable Object cannot be null");
-            if (fieldSelector == null) throw new ArgumentNullException(nameof(fieldSelector), "Field Selector for lockable object cannot be null");
+            if (baseObjId == null)
+                throw new ArgumentNullException(nameof(baseObjId), "Base Object Id cannot be null");
+
+            if (obj == null)
+                throw new ArgumentNullException(nameof(obj), "Lockable Object cannot be null");
+
+            if (fieldSelector == null)
+                throw new ArgumentNullException(nameof(fieldSelector),
+                                                "Field Selector for lockable object cannot be null");
+
             var lockTime = DateTime.UtcNow.Add(_lockTime);
             var staleLockTime = DateTime.UtcNow.AddMilliseconds(_lockTime.TotalMilliseconds * staleLockMultiplier * -1);
             var query = Builders<TBaseObject>.Filter.And(
                 Builders<TBaseObject>.Filter.Eq(x => x.Id, baseObjId),
                 Builders<TBaseObject>.Filter.ElemMatch(fieldSelector,
-                    Builders<TLockableObject>.Filter.And(
-                        Builders<TLockableObject>.Filter.Eq(x => x.Id, obj.Id),
-                        Builders<TLockableObject>.Filter.Or(
-                            Builders<TLockableObject>.Filter.Eq(x => x.LockId, null),
-                            Builders<TLockableObject>.Filter.And(
-                                Builders<TLockableObject>.Filter.Ne(x => x.LockId, null),
-                                Builders<TLockableObject>.Filter.Lte(x => x.UpdateLock, staleLockTime))))));
+                                                       Builders<TLockableObject>.Filter.And(
+                                                           Builders<TLockableObject>.Filter.Eq(x => x.Id, obj.Id),
+                                                           Builders<TLockableObject>.Filter.Or(
+                                                               Builders<TLockableObject>.Filter.Eq(x => x.LockId, null),
+                                                               Builders<TLockableObject>.Filter.And(
+                                                                   Builders<TLockableObject>.Filter.Ne(
+                                                                       x => x.LockId,
+                                                                       null),
+                                                                   Builders<TLockableObject>.Filter.Lte(
+                                                                       x => x.UpdateLock,
+                                                                       staleLockTime))))));
 
             var update = Builders<TBaseObject>.Update
-                .Set(Combine(fieldSelector, x => x.ElementAt(-1).UpdateLock), lockTime)
-                .Set(Combine(fieldSelector, x => x.ElementAt(-1).LockId), Guid.NewGuid());
+                                              .Set(Combine(fieldSelector,
+                                                           x => x.ElementAt(-1)
+                                                                 .UpdateLock),
+                                                   lockTime)
+                                              .Set(Combine(fieldSelector,
+                                                           x => x.ElementAt(-1)
+                                                                 .LockId),
+                                                   Guid.NewGuid());
 
             _logger.LogTrace("Acquire Lock Query: {Query}, Acquire Lock Update: {Update}",
-                query.Render(BsonSerializer.SerializerRegistry.GetSerializer<TBaseObject>(),
-                    BsonSerializer.SerializerRegistry).ToJson(),
-                update.Render(BsonSerializer.SerializerRegistry.GetSerializer<TBaseObject>(),
-                    BsonSerializer.SerializerRegistry).ToJson());
+                             query.Render(BsonSerializer.SerializerRegistry.GetSerializer<TBaseObject>(),
+                                          BsonSerializer.SerializerRegistry)
+                                  .ToJson(),
+                             update.Render(BsonSerializer.SerializerRegistry.GetSerializer<TBaseObject>(),
+                                           BsonSerializer.SerializerRegistry)
+                                   .ToJson());
 
-            return _col.FindOneAndUpdateAsync(query, update,
-                new FindOneAndUpdateOptions<TBaseObject, TBaseObject> {ReturnDocument = ReturnDocument.After}, cancellationToken);
+            return _col.WithWriteConcern(_writeConcern)
+                       .WithReadPreference(_readPreference)
+                       .WithReadConcern(_readConcern)
+                       .FindOneAndUpdateAsync(query,
+                                              update,
+                                              new FindOneAndUpdateOptions<TBaseObject, TBaseObject>
+                                              {
+                                                  ReturnDocument = ReturnDocument.After
+                                              },
+                                              cancellationToken);
         }
 
-        public Task<TBaseObject> AcquireLockAsync(TId baseObjId, TLockableObject obj,
-            Expression<Func<TBaseObject, TLockableObject>> fieldSelector, int staleLockMultiplier,
-            CancellationToken cancellationToken = default)
+        public Task<TBaseObject> AcquireLockAsync(TId baseObjId,
+                                                  TLockableObject obj,
+                                                  Expression<Func<TBaseObject, TLockableObject>> fieldSelector,
+                                                  int staleLockMultiplier,
+                                                  CancellationToken cancellationToken = default)
         {
-            if (baseObjId == null) throw new ArgumentNullException(nameof(baseObjId), "Base Object Id cannot be null");
-            if (obj == null) throw new ArgumentNullException(nameof(obj), "Lockable Object cannot be null");
-            if (fieldSelector == null) throw new ArgumentNullException(nameof(fieldSelector), "Field Selector for lockable object cannot be null");
+            if (baseObjId == null)
+                throw new ArgumentNullException(nameof(baseObjId), "Base Object Id cannot be null");
+
+            if (obj == null)
+                throw new ArgumentNullException(nameof(obj), "Lockable Object cannot be null");
+
+            if (fieldSelector == null)
+                throw new ArgumentNullException(nameof(fieldSelector),
+                                                "Field Selector for lockable object cannot be null");
+
             var lockTime = DateTime.UtcNow.Add(_lockTime);
             var staleLockTime = DateTime.UtcNow.AddMilliseconds(_lockTime.TotalMilliseconds * staleLockMultiplier * -1);
             var query = Builders<TBaseObject>.Filter.And(
-                Builders<TBaseObject>.Filter.Eq(x => x.Id, baseObjId),
+                Builders<TBaseObject>.Filter.Eq(x => x.Id,                         baseObjId),
                 Builders<TBaseObject>.Filter.Eq(Combine(fieldSelector, x => x.Id), obj.Id),
                 Builders<TBaseObject>.Filter.Or(
                     Builders<TBaseObject>.Filter.Eq(Combine(fieldSelector, x => x.LockId), null),
                     Builders<TBaseObject>.Filter.And(
-                        Builders<TBaseObject>.Filter.Ne(Combine(fieldSelector, x => x.LockId), null),
+                        Builders<TBaseObject>.Filter.Ne(Combine(fieldSelector,  x => x.LockId), null),
                         Builders<TBaseObject>.Filter.Lte(Combine(fieldSelector, x => x.UpdateLock), staleLockTime))));
 
             var update = Builders<TBaseObject>.Update
-                .Set(Combine(fieldSelector, x => x.UpdateLock), lockTime)
-                .Set(Combine(fieldSelector, x => x.LockId), Guid.NewGuid());
+                                              .Set(Combine(fieldSelector, x => x.UpdateLock), lockTime)
+                                              .Set(Combine(fieldSelector, x => x.LockId),     Guid.NewGuid());
 
             _logger.LogTrace("Acquire Lock Query: {Query}, Acquire Lock Update: {Update}",
-                query.Render(BsonSerializer.SerializerRegistry.GetSerializer<TBaseObject>(),
-                    BsonSerializer.SerializerRegistry).ToJson(),
-                update.Render(BsonSerializer.SerializerRegistry.GetSerializer<TBaseObject>(),
-                    BsonSerializer.SerializerRegistry).ToJson());
+                             query.Render(BsonSerializer.SerializerRegistry.GetSerializer<TBaseObject>(),
+                                          BsonSerializer.SerializerRegistry)
+                                  .ToJson(),
+                             update.Render(BsonSerializer.SerializerRegistry.GetSerializer<TBaseObject>(),
+                                           BsonSerializer.SerializerRegistry)
+                                   .ToJson());
 
-            return _col.FindOneAndUpdateAsync(query, update,
-                new FindOneAndUpdateOptions<TBaseObject, TBaseObject> {ReturnDocument = ReturnDocument.After}, cancellationToken);
+
+            return _col.WithWriteConcern(_writeConcern)
+                       .WithReadPreference(_readPreference)
+                       .WithReadConcern(_readConcern)
+                       .FindOneAndUpdateAsync(query,
+                                              update,
+                                              new FindOneAndUpdateOptions<TBaseObject, TBaseObject>
+                                              {
+                                                  ReturnDocument = ReturnDocument.After
+                                              },
+                                              cancellationToken);
         }
 
-        public async Task<bool> RefreshLockAsync(TId baseObjId, TId lockedTId, Guid lockedObjectLockId,
-            Expression<Func<TBaseObject, IEnumerable<TLockableObject>>> fieldSelector, CancellationToken cancellationToken = default)
+        public async Task<bool> RefreshLockAsync(TId baseObjId,
+                                                 TId lockedTId,
+                                                 Guid lockedObjectLockId,
+                                                 Expression<Func<TBaseObject, IEnumerable<TLockableObject>>>
+                                                     fieldSelector,
+                                                 CancellationToken cancellationToken = default)
         {
             var query = Builders<TBaseObject>.Filter.And(
                 Builders<TBaseObject>.Filter.Eq(x => x.Id, baseObjId),
                 Builders<TBaseObject>.Filter.ElemMatch(fieldSelector,
-                    Builders<TLockableObject>.Filter.And(
-                        Builders<TLockableObject>.Filter.Eq(x => x.Id, lockedTId),
-                        Builders<TLockableObject>.Filter.Eq(x => x.LockId, lockedObjectLockId))));
+                                                       Builders<TLockableObject>.Filter.And(
+                                                           Builders<TLockableObject>.Filter.Eq(x => x.Id, lockedTId),
+                                                           Builders<TLockableObject>.Filter.Eq(
+                                                               x => x.LockId,
+                                                               lockedObjectLockId))));
 
-            var update = Builders<TBaseObject>.Update.Set(Combine(fieldSelector, x => x.ElementAt(-1).UpdateLock),
-                DateTime.UtcNow.Add(_lockTime));
+            var update = Builders<TBaseObject>.Update.Set(Combine(fieldSelector,
+                                                                  x => x.ElementAt(-1)
+                                                                        .UpdateLock),
+                                                          DateTime.UtcNow.Add(_lockTime));
 
             _logger.LogTrace("Refresh Lock Query: {Query}, Refresh Lock Update: {Update}",
-                query.Render(BsonSerializer.SerializerRegistry.GetSerializer<TBaseObject>(),
-                    BsonSerializer.SerializerRegistry).ToJson(),
-                update.Render(BsonSerializer.SerializerRegistry.GetSerializer<TBaseObject>(),
-                    BsonSerializer.SerializerRegistry).ToJson());
+                             query.Render(BsonSerializer.SerializerRegistry.GetSerializer<TBaseObject>(),
+                                          BsonSerializer.SerializerRegistry)
+                                  .ToJson(),
+                             update.Render(BsonSerializer.SerializerRegistry.GetSerializer<TBaseObject>(),
+                                           BsonSerializer.SerializerRegistry)
+                                   .ToJson());
 
-            var updateResult = await _col.UpdateOneAsync(query, update, cancellationToken: cancellationToken);
-            return updateResult.IsModifiedCountAvailable && updateResult.MatchedCount == 1 && updateResult.ModifiedCount == 1;
+            var updateResult = await _col.WithWriteConcern(_writeConcern)
+                                         .WithReadPreference(_readPreference)
+                                         .WithReadConcern(_readConcern)
+                                         .UpdateOneAsync(query, update, cancellationToken: cancellationToken);
+
+            return updateResult.IsModifiedCountAvailable
+                && updateResult.MatchedCount == 1
+                && updateResult.ModifiedCount == 1;
         }
 
-        public async Task<bool> RefreshLockAsync(TId baseObjId, TId lockedTId, Guid lockedObjectLockId,
-            Expression<Func<TBaseObject, TLockableObject>> fieldSelector, CancellationToken cancellationToken = default)
+        public async Task<bool> RefreshLockAsync(TId baseObjId,
+                                                 TId lockedTId,
+                                                 Guid lockedObjectLockId,
+                                                 Expression<Func<TBaseObject, TLockableObject>> fieldSelector,
+                                                 CancellationToken cancellationToken = default)
         {
             var query = Builders<TBaseObject>.Filter.And(
-                Builders<TBaseObject>.Filter.Eq(x => x.Id, baseObjId),
-                Builders<TBaseObject>.Filter.Eq(Combine(fieldSelector, x => x.Id), lockedTId),
+                Builders<TBaseObject>.Filter.Eq(x => x.Id,                             baseObjId),
+                Builders<TBaseObject>.Filter.Eq(Combine(fieldSelector, x => x.Id),     lockedTId),
                 Builders<TBaseObject>.Filter.Eq(Combine(fieldSelector, x => x.LockId), lockedObjectLockId));
 
-            var update = Builders<TBaseObject>.Update.Set(Combine(fieldSelector, x => x.UpdateLock), DateTime.UtcNow.Add(_lockTime));
+            var update =
+                Builders<TBaseObject>.Update.Set(Combine(fieldSelector, x => x.UpdateLock),
+                                                 DateTime.UtcNow.Add(_lockTime));
 
             _logger.LogTrace("Refresh Lock Query: {Query}, Refresh Lock Update: {Update}",
-                query.Render(BsonSerializer.SerializerRegistry.GetSerializer<TBaseObject>(),
-                    BsonSerializer.SerializerRegistry).ToJson(),
-                update.Render(BsonSerializer.SerializerRegistry.GetSerializer<TBaseObject>(),
-                    BsonSerializer.SerializerRegistry).ToJson());
+                             query.Render(BsonSerializer.SerializerRegistry.GetSerializer<TBaseObject>(),
+                                          BsonSerializer.SerializerRegistry)
+                                  .ToJson(),
+                             update.Render(BsonSerializer.SerializerRegistry.GetSerializer<TBaseObject>(),
+                                           BsonSerializer.SerializerRegistry)
+                                   .ToJson());
 
-            var updateResult = await _col.UpdateOneAsync(query, update, cancellationToken: cancellationToken);
-            return updateResult.IsModifiedCountAvailable && updateResult.MatchedCount == 1 && updateResult.ModifiedCount == 1;
+            var updateResult = await _col.WithWriteConcern(_writeConcern)
+                                         .WithReadPreference(_readPreference)
+                                         .WithReadConcern(_readConcern)
+                                         .UpdateOneAsync(query, update, cancellationToken: cancellationToken);
+
+            return updateResult.IsModifiedCountAvailable
+                && updateResult.MatchedCount == 1
+                && updateResult.ModifiedCount == 1;
         }
 
-        public async Task<bool> ReleaseLockAsync(TId baseObjId, TId lockedTId, Guid lockedObjectLockId,
-            Expression<Func<TBaseObject, IEnumerable<TLockableObject>>> fieldSelector, CancellationToken cancellationToken = default)
+        public async Task<bool> ReleaseLockAsync(TId baseObjId,
+                                                 TId lockedTId,
+                                                 Guid lockedObjectLockId,
+                                                 Expression<Func<TBaseObject, IEnumerable<TLockableObject>>>
+                                                     fieldSelector,
+                                                 CancellationToken cancellationToken = default)
         {
             var query = Builders<TBaseObject>.Filter.And(
                 Builders<TBaseObject>.Filter.Eq(x => x.Id, baseObjId),
                 Builders<TBaseObject>.Filter.ElemMatch(fieldSelector,
-                    Builders<TLockableObject>.Filter.And(
-                        Builders<TLockableObject>.Filter.Eq(x => x.Id, lockedTId),
-                        Builders<TLockableObject>.Filter.Eq(x => x.LockId, lockedObjectLockId))));
+                                                       Builders<TLockableObject>.Filter.And(
+                                                           Builders<TLockableObject>.Filter.Eq(x => x.Id, lockedTId),
+                                                           Builders<TLockableObject>.Filter.Eq(
+                                                               x => x.LockId,
+                                                               lockedObjectLockId))));
 
             var update = Builders<TBaseObject>.Update
-                .Set(Combine(fieldSelector, x => x.ElementAt(-1).UpdateLock), null)
-                .Set(Combine(fieldSelector, x => x.ElementAt(-1).LockId), null);
+                                              .Set(Combine(fieldSelector,
+                                                           x => x.ElementAt(-1)
+                                                                 .UpdateLock),
+                                                   null)
+                                              .Set(Combine(fieldSelector,
+                                                           x => x.ElementAt(-1)
+                                                                 .LockId),
+                                                   null);
 
             _logger.LogTrace("Refresh Lock Query: {Query}, Refresh Lock Update: {Update}",
-                query.Render(BsonSerializer.SerializerRegistry.GetSerializer<TBaseObject>(),
-                    BsonSerializer.SerializerRegistry).ToJson(),
-                update.Render(BsonSerializer.SerializerRegistry.GetSerializer<TBaseObject>(),
-                    BsonSerializer.SerializerRegistry).ToJson());
+                             query.Render(BsonSerializer.SerializerRegistry.GetSerializer<TBaseObject>(),
+                                          BsonSerializer.SerializerRegistry)
+                                  .ToJson(),
+                             update.Render(BsonSerializer.SerializerRegistry.GetSerializer<TBaseObject>(),
+                                           BsonSerializer.SerializerRegistry)
+                                   .ToJson());
 
-            var updateResult = await _col.UpdateOneAsync(query, update, cancellationToken: cancellationToken);
-            return updateResult.IsModifiedCountAvailable && updateResult.MatchedCount == 1 && updateResult.ModifiedCount == 1;
+            var updateResult = await _col.WithWriteConcern(_writeConcern)
+                                         .WithReadPreference(_readPreference)
+                                         .WithReadConcern(_readConcern)
+                                         .UpdateOneAsync(query, update, cancellationToken: cancellationToken);
+
+            return updateResult.IsModifiedCountAvailable
+                && updateResult.MatchedCount == 1
+                && updateResult.ModifiedCount == 1;
         }
 
-        public Task<TBaseObject> GetLockedObjectAsync(TId baseObjId, TId lockedTId, Guid lockedObjectLockId,
-            Expression<Func<TBaseObject, TLockableObject>> fieldSelector, CancellationToken cancellationToken = default)
+        public Task<TBaseObject> GetLockedObjectAsync(TId baseObjId,
+                                                      TId lockedTId,
+                                                      Guid lockedObjectLockId,
+                                                      Expression<Func<TBaseObject, TLockableObject>> fieldSelector,
+                                                      CancellationToken cancellationToken = default)
         {
             var query = Builders<TBaseObject>.Filter.And(
-                Builders<TBaseObject>.Filter.Eq(x => x.Id, baseObjId),
-                Builders<TBaseObject>.Filter.Eq(Combine(fieldSelector, x => x.Id), lockedTId),
+                Builders<TBaseObject>.Filter.Eq(x => x.Id,                             baseObjId),
+                Builders<TBaseObject>.Filter.Eq(Combine(fieldSelector, x => x.Id),     lockedTId),
                 Builders<TBaseObject>.Filter.Eq(Combine(fieldSelector, x => x.LockId), lockedObjectLockId));
-            return _col.Find(query).FirstOrDefaultAsync(cancellationToken);
+
+            return _col.WithWriteConcern(_writeConcern)
+                       .WithReadPreference(_readPreference)
+                       .WithReadConcern(_readConcern)
+                       .Find(query)
+                       .FirstOrDefaultAsync(cancellationToken);
         }
 
-        public Task<TBaseObject> GetLockedObjectAsync(TId baseObjId, TId lockedTId, Guid lockedObjectLockId,
-            Expression<Func<TBaseObject, IEnumerable<TLockableObject>>> fieldSelector, CancellationToken cancellationToken = default)
+        public Task<TBaseObject> GetLockedObjectAsync(TId baseObjId,
+                                                      TId lockedTId,
+                                                      Guid lockedObjectLockId,
+                                                      Expression<Func<TBaseObject, IEnumerable<TLockableObject>>>
+                                                          fieldSelector,
+                                                      CancellationToken cancellationToken = default)
         {
             var query = Builders<TBaseObject>.Filter.And(
                 Builders<TBaseObject>.Filter.Eq(x => x.Id, baseObjId),
                 Builders<TBaseObject>.Filter.ElemMatch(fieldSelector,
-                    Builders<TLockableObject>.Filter.And(
-                        Builders<TLockableObject>.Filter.Eq(x => x.Id, lockedTId),
-                        Builders<TLockableObject>.Filter.Eq(x => x.LockId, lockedObjectLockId))));
-            return _col.Find(query).FirstOrDefaultAsync(cancellationToken);
+                                                       Builders<TLockableObject>.Filter.And(
+                                                           Builders<TLockableObject>.Filter.Eq(x => x.Id, lockedTId),
+                                                           Builders<TLockableObject>.Filter.Eq(
+                                                               x => x.LockId,
+                                                               lockedObjectLockId))));
+
+            return _col.WithWriteConcern(_writeConcern)
+                       .WithReadPreference(_readPreference)
+                       .WithReadConcern(_readConcern)
+                       .Find(query)
+                       .FirstOrDefaultAsync(cancellationToken);
         }
 
-        public async Task<bool> ReleaseLockAsync(TId baseObjId, TId lockedTId, Guid lockedObjectLockId,
-            Expression<Func<TBaseObject, TLockableObject>> fieldSelector, CancellationToken cancellationToken = default)
+        public async Task<bool> ReleaseLockAsync(TId baseObjId,
+                                                 TId lockedTId,
+                                                 Guid lockedObjectLockId,
+                                                 Expression<Func<TBaseObject, TLockableObject>> fieldSelector,
+                                                 CancellationToken cancellationToken = default)
         {
             var query = Builders<TBaseObject>.Filter.And(
-                Builders<TBaseObject>.Filter.Eq(x => x.Id, baseObjId),
-                Builders<TBaseObject>.Filter.Eq(Combine(fieldSelector, x => x.Id), lockedTId),
+                Builders<TBaseObject>.Filter.Eq(x => x.Id,                             baseObjId),
+                Builders<TBaseObject>.Filter.Eq(Combine(fieldSelector, x => x.Id),     lockedTId),
                 Builders<TBaseObject>.Filter.Eq(Combine(fieldSelector, x => x.LockId), lockedObjectLockId));
 
             var update = Builders<TBaseObject>.Update
-                .Set(Combine(fieldSelector, x => x.UpdateLock), null)
-                .Set(Combine(fieldSelector, x => x.LockId), null);
+                                              .Set(Combine(fieldSelector, x => x.UpdateLock), null)
+                                              .Set(Combine(fieldSelector, x => x.LockId),     null);
 
             _logger.LogTrace("Refresh Lock Query: {Query}, Refresh Lock Update: {Update}",
-                query.Render(BsonSerializer.SerializerRegistry.GetSerializer<TBaseObject>(),
-                    BsonSerializer.SerializerRegistry).ToJson(),
-                update.Render(BsonSerializer.SerializerRegistry.GetSerializer<TBaseObject>(),
-                    BsonSerializer.SerializerRegistry).ToJson());
+                             query.Render(BsonSerializer.SerializerRegistry.GetSerializer<TBaseObject>(),
+                                          BsonSerializer.SerializerRegistry)
+                                  .ToJson(),
+                             update.Render(BsonSerializer.SerializerRegistry.GetSerializer<TBaseObject>(),
+                                           BsonSerializer.SerializerRegistry)
+                                   .ToJson());
 
-            var updateResult = await _col.UpdateOneAsync(query, update, cancellationToken: cancellationToken);
-            return updateResult.IsModifiedCountAvailable && updateResult.MatchedCount == 1 && updateResult.ModifiedCount == 1;
+            var updateResult = await _col.WithWriteConcern(_writeConcern)
+                                         .WithReadPreference(_readPreference)
+                                         .WithReadConcern(_readConcern)
+                                         .UpdateOneAsync(query, update, cancellationToken: cancellationToken);
+
+            return updateResult.IsModifiedCountAvailable
+                && updateResult.MatchedCount == 1
+                && updateResult.ModifiedCount == 1;
         }
 
         private static Expression<Func<T1, T3>> Combine<T1, T2, T3>(Expression<Func<T1, T2>> first,
-            Expression<Func<T2, T3>> second)
+                                                                    Expression<Func<T2, T3>> second)
         {
             var param = Expression.Parameter(typeof(T1), "param");
 
             var newFirst = new ReplaceVisitor(first.Parameters.First(), param)
                 .Visit(first.Body);
+
             var newSecond = new ReplaceVisitor(second.Parameters.First(), newFirst)
                 .Visit(second.Body);
 
@@ -236,7 +390,9 @@ namespace SharpLock.MongoDB
 
             public override Expression Visit(Expression node)
             {
-                return node == _from ? _to : base.Visit(node);
+                return node == _from
+                           ? _to
+                           : base.Visit(node);
             }
         }
     }

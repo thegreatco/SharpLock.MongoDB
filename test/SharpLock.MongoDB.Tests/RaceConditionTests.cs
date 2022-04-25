@@ -28,8 +28,8 @@ namespace SharpLock.MongoDB.Tests
             ILoggerFactory factory = new SerilogLoggerFactory(logger);
             _logger = factory.CreateLogger(GetType());
 
-            var client = new MongoClient();
-            var db = client.GetDatabase("Test");
+            var client = new MongoClient("mongodb://DESKTOP-8BPSEQ0:27017,DESKTOP-8BPSEQ0:27018,DESKTOP-8BPSEQ0:27019");
+            var db = client.GetDatabase("test");
             _col = db.GetCollection<LockBase>($"lockables.{GetType()}");
             await _col.DeleteManyAsync(Builders<LockBase>.Filter.Empty);
         }
@@ -39,11 +39,11 @@ namespace SharpLock.MongoDB.Tests
         {
             var lockBase = new LockBase();
             await _col.InsertOneAsync(lockBase);
-            var dataStore = new SharpLockMongoDataStore<LockBase, ObjectId>(_col, _logger, TimeSpan.FromSeconds(30));
+            var dataStore = new SharpLockMongoDataStore<LockBase, ObjectId>(_col, _logger, TimeSpan.FromSeconds(10));
 
-            var locks = Enumerable.Range(0, 100).Select(x => new DistributedLock<LockBase, ObjectId>(dataStore)).ToList();
+            var locks = Enumerable.Range(0, 1000).Select(x => new DistributedLock<LockBase, ObjectId>(dataStore, 2)).ToList();
             Log.Logger.Information(locks.Count.ToString());
-            var lockedObjects = await Task.WhenAll(locks.Select(x => x.AcquireLockAsync(lockBase, TimeSpan.FromSeconds(1))));
+            var lockedObjects = await Task.WhenAll(locks.Select(x => x.AcquireLockAsync(lockBase, TimeSpan.FromMilliseconds(100))));
             
             Assert.IsFalse(lockedObjects.Count(x => x != null) < 1, "Failed to acquire lock.");
             Assert.IsFalse(lockedObjects.Count(x => x != null) > 1, "Acquired multiple locks.");
@@ -67,11 +67,11 @@ namespace SharpLock.MongoDB.Tests
         {
             var lockBase = new LockBase();
             await _col.InsertOneAsync(lockBase);
-            var dataStore = new SharpLockMongoDataStore<LockBase, InnerLock, ObjectId>(_col, _logger, TimeSpan.FromSeconds(30));
+            var dataStore = new SharpLockMongoDataStore<LockBase, InnerLock, ObjectId>(_col, _logger, TimeSpan.FromSeconds(10));
 
-            var locks = Enumerable.Range(0, 100).Select(x => new DistributedLock<LockBase, InnerLock, ObjectId>(dataStore, y => y.SingularInnerLock)).ToList();
+            var locks = Enumerable.Range(0, 1000).Select(x => new DistributedLock<LockBase, InnerLock, ObjectId>(dataStore, y => y.SingularInnerLock, 2)).ToList();
             Log.Logger.Information(locks.Count.ToString());
-            var lockedObjects = await Task.WhenAll(locks.Select(x => x.AcquireLockAsync(lockBase, lockBase.SingularInnerLock, TimeSpan.FromSeconds(1))));
+            var lockedObjects = await Task.WhenAll(locks.Select(x => x.AcquireLockAsync(lockBase, lockBase.SingularInnerLock, TimeSpan.FromMilliseconds(100))));
 
             Assert.IsFalse(lockedObjects.Count(x => x != null) < 1, "Failed to acquire lock.");
             Assert.IsFalse(lockedObjects.Count(x => x != null) > 1, "Acquired multiple locks.");
@@ -95,11 +95,11 @@ namespace SharpLock.MongoDB.Tests
         {
             var lockBase = new LockBase();
             await _col.InsertOneAsync(lockBase);
-            var dataStore = new SharpLockMongoDataStore<LockBase, InnerLock, ObjectId>(_col, _logger, TimeSpan.FromSeconds(30));
+            var dataStore = new SharpLockMongoDataStore<LockBase, InnerLock, ObjectId>(_col, _logger, TimeSpan.FromSeconds(10));
 
-            var locks = Enumerable.Range(0, 100).Select(x => new DistributedLock<LockBase, InnerLock, ObjectId>(dataStore, y => y.EnumerableLockables)).ToList();
+            var locks = Enumerable.Range(0, 1000).Select(x => new DistributedLock<LockBase, InnerLock, ObjectId>(dataStore, y => y.EnumerableLockables, 2)).ToList();
             Log.Logger.Information(locks.Count.ToString());
-            var lockedObjects = await Task.WhenAll(locks.Select(x => x.AcquireLockAsync(lockBase, lockBase.EnumerableLockables.First(), TimeSpan.FromSeconds(1))));
+            var lockedObjects = await Task.WhenAll(locks.Select(x => x.AcquireLockAsync(lockBase, lockBase.EnumerableLockables.First(), TimeSpan.FromMilliseconds(100))));
 
             Assert.IsFalse(lockedObjects.Count(x => x != null) < 1, "Failed to acquire lock.");
             Assert.IsFalse(lockedObjects.Count(x => x != null) > 1, "Acquired multiple locks.");
@@ -123,11 +123,11 @@ namespace SharpLock.MongoDB.Tests
         {
             var lockBase = new LockBase();
             await _col.InsertOneAsync(lockBase);
-            var dataStore = new SharpLockMongoDataStore<LockBase, InnerLock, ObjectId>(_col, _logger, TimeSpan.FromSeconds(30));
+            var dataStore = new SharpLockMongoDataStore<LockBase, InnerLock, ObjectId>(_col, _logger, TimeSpan.FromSeconds(10));
 
-            var locks = Enumerable.Range(0, 100).Select(x => new DistributedLock<LockBase, InnerLock, ObjectId>(dataStore, y => y.ListOfLockables)).ToList();
+            var locks = Enumerable.Range(0, 1000).Select(x => new DistributedLock<LockBase, InnerLock, ObjectId>(dataStore, y => y.ListOfLockables, 2)).ToList();
             Log.Logger.Information(locks.Count.ToString());
-            var lockedObjects = await Task.WhenAll(locks.Select(x => x.AcquireLockAsync(lockBase, lockBase.ListOfLockables[0], TimeSpan.FromSeconds(1))));
+            var lockedObjects = await Task.WhenAll(locks.Select(x => x.AcquireLockAsync(lockBase, lockBase.ListOfLockables[0], TimeSpan.FromMilliseconds(100))));
 
             Assert.IsFalse(lockedObjects.Count(x => x != null) < 1, "Failed to acquire lock.");
             Assert.IsFalse(lockedObjects.Count(x => x != null) > 1, "Acquired multiple locks.");
@@ -151,11 +151,11 @@ namespace SharpLock.MongoDB.Tests
         {
             var lockBase = new LockBase();
             await _col.InsertOneAsync(lockBase);
-            var dataStore = new SharpLockMongoDataStore<LockBase, InnerLock, ObjectId>(_col, _logger, TimeSpan.FromSeconds(30));
+            var dataStore = new SharpLockMongoDataStore<LockBase, InnerLock, ObjectId>(_col, _logger, TimeSpan.FromSeconds(10));
 
-            var locks = Enumerable.Range(0, 100).Select(x => new DistributedLock<LockBase, InnerLock, ObjectId>(dataStore, y => y.ArrayOfLockables)).ToList();
+            var locks = Enumerable.Range(0, 1000).Select(x => new DistributedLock<LockBase, InnerLock, ObjectId>(dataStore, y => y.ArrayOfLockables, 2)).ToList();
             Log.Logger.Information(locks.Count.ToString());
-            var lockedObjects = await Task.WhenAll(locks.Select(x => x.AcquireLockAsync(lockBase, lockBase.ArrayOfLockables[1], TimeSpan.FromSeconds(1))));
+            var lockedObjects = await Task.WhenAll(locks.Select(x => x.AcquireLockAsync(lockBase, lockBase.ArrayOfLockables[1], TimeSpan.FromMilliseconds(100))));
 
             Assert.IsFalse(lockedObjects.Count(x => x != null) < 1, "Failed to acquire lock.");
             Assert.IsFalse(lockedObjects.Count(x => x != null) > 1, "Acquired multiple locks.");
