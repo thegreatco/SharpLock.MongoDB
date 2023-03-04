@@ -25,7 +25,7 @@
     <FileVersion Condition=" '$(FILE_VERSION)' != '' ">$(FILE_VERSION)</FileVersion>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="MongoDB.Driver" Version="2.9.3" />
+    <PackageReference Include="MongoDB.Driver" Version="2.19.0" />
     <PackageReference Include="SharpLock" Version="1.1.1" />
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="2.2.0" />
   </ItemGroup>
